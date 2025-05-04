@@ -34,6 +34,8 @@ class AdSerializer(serializers.ModelSerializer):
 		instance.condition = validated_data.get("condition", instance.condition)
 		instance.category = validated_data.get("category", instance.category)
 
+		instance.save()
+
 		return instance
 
 

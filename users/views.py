@@ -89,8 +89,8 @@ class LoginUserView(APIView):
 		password = data.get("password")
 
 		user, message = login_user(request,
-                          username,
-                          password)
+		                          username,
+		                          password)
 
 		if not user:
 			return Response(data={"message": message},

@@ -1,10 +1,11 @@
 from rest_framework.pagination import PageNumberPagination
 
 
-def get_paginated_data(queryset,
+def get_paginated_data(page_size,
+                       queryset,
                        request):
 	paginator = PageNumberPagination()
-	paginator.page_size = 20
+	paginator.page_size = page_size
 
 	page = paginator.paginate_queryset(queryset, request)
 

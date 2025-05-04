@@ -9,7 +9,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 
-from .serializers import AdSerializer, UpdateExchangeProposalSerializer, CreateExchangeProposalSerializer, ExchangeProposalSerializer
+from .serializers import AdSerializer, UpdateExchangeProposalSerializer, CreateExchangeProposalSerializer, \
+	ExchangeProposalSerializer
 
 from ads.models import Ad, AdCategory, ExchangeProposal
 from .utils import get_filtered_data, get_paginated_data
@@ -38,7 +39,7 @@ class AdDeletePutView(APIView):
 			return Response(data={"message": f"ad with id {ad_id} is not found"},
 			                status=status.HTTP_404_NOT_FOUND)
 
-		if ad.user_id != request.user:
+		if ad.user_id != request.user.id:
 			return Response(data={"message": "you cannot access another's ad"},
 			                status=status.HTTP_403_FORBIDDEN)
 
@@ -69,7 +70,6 @@ class AdDeletePutView(APIView):
 				return Response(data={"message": "category does not exists"},
 				                status=status.HTTP_404_NOT_FOUND)
 
-
 		try:
 			ad = Ad.objects.get(id=ad_id)
 		except Ad.DoesNotExist:
@@ -77,12 +77,12 @@ class AdDeletePutView(APIView):
 			                                 " you can try use post method to create new object"},
 			                status=status.HTTP_404_NOT_FOUND)
 
-		if ad.user_id != request.user:
+
+		if ad.user_id != request.user.id:
 			return Response(data={"message": "you cannot access another's ad"},
 			                status=status.HTTP_403_FORBIDDEN)
 
-
-		serializer = AdSerializer(data=data, instance=ad)
+		serializer = AdSerializer(data=data, instance=ad, partial=True)
 		serializer.is_valid(raise_exception=True)
 		serializer.save()
 
@@ -127,9 +127,7 @@ class AdView(APIView):
 		}
 	)
 	def post(self, request):
-		print(request.user)
 		data = request.data
-		print(data)
 
 		serializer = AdSerializer(data=data)
 		serializer.is_valid(raise_exception=True)
@@ -142,6 +140,13 @@ class AdView(APIView):
 class ExchangeProposalGetPostView(APIView):
 	@swagger_auto_schema(
 		operation_description="Получение предложения по id",
+		manual_parameters=[
+			openapi.Parameter(
+				'id',
+				openapi.IN_QUERY,
+				description="Поиск по id",
+				type=openapi.TYPE_INTEGER
+			)],
 		responses={
 			200: ExchangeProposalSerializer,
 			404: "proposal with ad_id is not found"
@@ -217,7 +222,6 @@ class ExchangeProposalDeletePutView(APIView):
 	)
 	def put(self, request, proposal_id):
 		data = request.data
-		print(request.user)
 		if not data:
 			return Response(status=status.HTTP_400_BAD_REQUEST,
 			                data={"message": "body is empty"})
@@ -236,8 +240,46 @@ class ExchangeProposalDeletePutView(APIView):
 class SearchAdView(APIView):
 	@swagger_auto_schema(
 		operation_description="Поиск рекламы",
-		responses={
-			200: "return filtered objects",
+		manual_parameters=[
+			openapi.Parameter(
+				"category",
+				openapi.IN_QUERY,
+				description="категория",
+				type=openapi.TYPE_INTEGER
+			),
+			openapi.Parameter(
+				"condition",
+				openapi.IN_QUERY,
+				description="условия",
+				type=openapi.TYPE_STRING
+			),
+			openapi.Parameter(
+				"title",
+				openapi.IN_QUERY,
+				description="название",
+				type=openapi.TYPE_STRING
+			),
+			openapi.Parameter(
+				"description",
+				openapi.IN_QUERY,
+				description="описание",
+				type=openapi.TYPE_STRING
+			),
+			openapi.Parameter(
+				"page_size",
+				openapi.IN_QUERY,
+				description="размер страницы",
+				type=openapi.TYPE_INTEGER
+			),
+			openapi.Parameter(
+				"page",
+				openapi.IN_QUERY,
+				description="номер страницы",
+				type=openapi.TYPE_INTEGER
+			),
+		],
+		response={
+			200: AdSerializer,
 		}
 	)
 	def get(self, request):
@@ -247,6 +289,7 @@ class SearchAdView(APIView):
 		condition = self.request.query_params.get("condition")
 		title = self.request.query_params.get("title")
 		description = self.request.query_params.get("description")
+		page_size = self.request.query_params.get("page_size", 20)
 
 		filtered_data = get_filtered_data(queryset,
 	                                      category,
@@ -254,7 +297,8 @@ class SearchAdView(APIView):
 	                                      condition,
 	                                      title)
 
-		paginated_data = get_paginated_data(filtered_data,
+		paginated_data = get_paginated_data(page_size,
+		                                    filtered_data,
 		                                    request)
 
 		serializer = AdSerializer(paginated_data, many=True)
